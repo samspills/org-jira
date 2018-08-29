@@ -1680,15 +1680,11 @@ Where issue-id will be something such as \"EX-22\"."
 
 (defvar org-jira-fields-values-history nil)
 ;;;###autoload
-(defun org-jira-progress-issue ()
+(defun org-jira-progress-issue-action (action)
   "Progress issue workflow."
   (interactive)
   (ensure-on-issue
    (let* ((issue-id (org-jira-id))
-          (actions (jiralib-get-available-actions
-                    issue-id
-                    (org-jira-get-issue-val-from-org 'status)))
-          (action (org-jira-read-action actions))
           (fields (jiralib-get-fields-for-action issue-id action))
           (org-jira-rest-fields fields)
           (field-key)
@@ -1737,6 +1733,17 @@ Where issue-id will be something such as \"EX-22\"."
        (lambda (&key data &allow-other-keys)
          (org-jira-refresh-issue)))))))
 
+;;;###autoload
+(defun org-jira-progress-issue ()
+  "Progress issue workflow."
+  (interactive)
+  (ensure-on-issue
+   (let* ((actions (jiralib-get-available-actions
+                    issue-id
+                    (org-jira-get-issue-val-from-org 'status)))
+          (action (org-jira-read-action actions)))
+     (org-jira-progress-issue-action action))))
+
 (defun org-jira-progress-next-action (actions current-status)
   "Grab the user defined 'next' action from ACTIONS, given CURRENT-STATUS."
   (let* ((next-action-name (cdr (assoc current-status org-jira-progress-issue-flow)))
@@ -1750,58 +1757,12 @@ Where issue-id will be something such as \"EX-22\"."
   "Progress issue workflow."
   (interactive)
   (ensure-on-issue
-   (let* ((issue-id (org-jira-id))
-          (actions (jiralib-get-available-actions
+   (let* ((actions (jiralib-get-available-actions
                     issue-id
                     (org-jira-get-issue-val-from-org 'status)))
-          (action (org-jira-progress-next-action actions (org-jira-get-issue-val-from-org 'status)))
-          (fields (jiralib-get-fields-for-action issue-id action))
-          (org-jira-rest-fields fields)
-          (field-key)
-          (custom-fields-collector nil)
-          (custom-fields
-           (progn
-             ;; delete those elements in fields, which have
-             ;; already been set in custom-fields-collector
-             (while fields
-               (setq fields
-                     (cl-remove-if
-                      (lambda (strstr)
-                        (cl-member-if (lambda (symstr)
-                                        (string= (car strstr)  (symbol-name (car symstr))))
-                                      custom-fields-collector))
-                      fields))
-               (setq field-key (org-jira-read-field fields))
-               (if (not field-key)
-                   (setq fields nil)
-                 (setq custom-fields-collector
-                       (cons
-                        (funcall (if jiralib-use-restapi
-                                     #'list
-                                   #'cons)
-                                 field-key
-                                 (if (eq field-key 'resolution)
-                                     (org-jira-read-resolution)
-                                   (let ((field-value (completing-read
-                                                       (format "Please enter %s's value: "
-                                                               (cdr (assoc (symbol-name field-key) fields)))
-                                                       org-jira-fields-values-history
-                                                       nil
-                                                       nil
-                                                       nil
-                                                       'org-jira-fields-values-history)))
-                                     (if jiralib-use-restapi
-                                         (cons 'name field-value)
-                                       field-value))))
-                        custom-fields-collector))))
-             custom-fields-collector)))
+          (action (org-jira-progress-next-action actions (org-jira-get-issue-val-from-org 'status))))
      (if action
-         (jiralib-progress-workflow-action
-          issue-id
-          action
-          custom-fields
-          (org-jira-with-callback
-           (ensure-on-issue-id issue-id (org-jira-refresh-issue))))
+         (org-jira-progress-issue-action action)
        (error "No action defined for that step!")))))
 
 (defun org-jira-get-id-name-alist (name ids-to-names)
