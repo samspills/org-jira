@@ -337,19 +337,6 @@ See `org-default-priority' for more info."
            (error "Not on an issue region!")))
        ,@body)))
 
-(defmacro quiet-ensure-on-issue (&rest body)
-  "Make sure we are on an issue heading, before executing BODY."
-  (declare (debug t))
-  (declare (indent 'defun))
-  `(save-excursion
-     (save-restriction
-       (widen)
-       (unless (looking-at "^\\*\\* ")
-         (search-backward-regexp "^\\*\\* " nil t)) ; go to top heading
-       (let ((org-jira-id (org-jira-id)))
-         (when (and org-jira-id (string-match (jiralib-get-issue-regexp) (downcase org-jira-id)))
-           ,@body)))))
-
 (defmacro org-jira-with-callback (&rest body)
   "Simpler way to write the data callbacks."
   (declare (debug t))
@@ -1696,7 +1683,7 @@ Where issue-id will be something such as \"EX-22\"."
 (defun org-jira-progress-issue-action (action)
   "Progress issue workflow."
   (interactive)
-  (quiet-ensure-on-issue
+  (ensure-on-issue
    (let* ((issue-id (org-jira-id))
           (fields (jiralib-get-fields-for-action issue-id action))
           (org-jira-rest-fields fields)
